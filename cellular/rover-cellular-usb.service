@@ -1,0 +1,9 @@
+[Unit]
+Description=Restore USB sharing on the rover's UFI cellular modem
+After=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/rover-cellular-usb
+TimeoutStartSec=60
+UMask=0077

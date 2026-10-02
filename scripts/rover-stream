@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# Launch StampNote on Raspberry Pi OS Lite. Run as rover, without sudo.
+set -euo pipefail
+
+url='https://stampnote-omega.vercel.app/robotic-control'
+browser_unit='rover-site-browser.service'
+display_unit='rover-site-display.service'
+profile="${HOME}/.config/chromium"
+state_dir="${HOME}/.local/state/rover-stream"
+
+if [[ $EUID -eq 0 ]]; then
+  echo 'Run this as rover, without sudo, to use your signed-in browser profile.' >&2
+  exit 1
+fi
+
+stop_browser() {
+  if systemctl --user is-active --quiet "$browser_unit"; then
+    systemctl --user stop "$browser_unit"
+  fi
+}
+
+case "${1:-start}" in
+  stop)
+    stop_browser
+    echo 'Robot browser stopped.'
+    exit 0
+    ;;
+  status)
+    systemctl --user status "$browser_unit" "$display_unit" --no-pager
+    exit $?
+    ;;
+  logs)
+    tail -n 80 "$state_dir/browser.log"
+    exit 0
+    ;;
+  restart) stop_browser ;;
+  start) ;;
+  *) echo 'Usage: rover-stream [start|restart|stop|status|logs]' >&2; exit 2 ;;
+esac
+
+for executable in chromium Xvfb python3 systemd-run; do
+  if ! command -v "$executable" >/dev/null 2>&1; then
+    echo "Missing dependency: $executable" >&2
+    echo 'Install dependencies: sudo apt install chromium xvfb python3' >&2
+    exit 1
+  fi
+done
+
+if systemctl --user is-active --quiet "$browser_unit"; then
+  echo 'Robot browser is already running. Use: rover-stream restart'
+  exit 0
+fi
+
+mkdir -p "$state_dir" "$profile/Default"
+chmod 700 "$state_dir"
+
+# Recover a stale lock after a reboot, but never touch a live browser's lock.
+python3 - "$profile" "$state_dir" <<'PY'
+import os
+from pathlib import Path
+import socket
+import sys
+import tempfile
+
+profile, state = map(Path, sys.argv[1:])
+lock = profile / 'SingletonLock'
+if lock.is_symlink():
+    host, _, pid = os.readlink(lock).rpartition('-')
+    if host != socket.gethostname() or not pid.isdigit() or Path('/proc', pid).exists():
+        sys.exit('Chromium profile is locked. Close its other browser process first.')
+    backup = Path(tempfile.mkdtemp(prefix='stale-lock-', dir=state))
+    for name in ('SingletonLock', 'SingletonCookie', 'SingletonSocket'):
+        item = profile / name
+        if item.is_symlink():
+            item.rename(backup / name)
+elif lock.exists():
+    sys.exit('Unexpected Chromium profile lock; refusing to change it.')
+PY
+
+# Allow only this site's webcam. Preserve the existing login and other settings.
+python3 - "$profile/Default/Preferences" <<'PY'
+import json
+import os
+from pathlib import Path
+import shutil
+import sys
+import tempfile
+
+path = Path(sys.argv[1])
+preferences = json.loads(path.read_text()) if path.exists() else {}
+camera = (preferences.setdefault('profile', {})
+          .setdefault('content_settings', {})
+          .setdefault('exceptions', {})
+          .setdefault('media_stream_camera', {}))
+camera['https://stampnote-omega.vercel.app:443,*'] = {'setting': 1}
+if path.exists():
+    shutil.copy2(path, path.with_name('Preferences.before-rover-stream'))
+fd, temporary = tempfile.mkstemp(dir=path.parent, prefix='.rover-preferences-')
+try:
+    with os.fdopen(fd, 'w') as output:
+        json.dump(preferences, output)
+    os.replace(temporary, path)
+finally:
+    if os.path.exists(temporary):
+        os.unlink(temporary)
+PY
+
+if ! systemctl --user is-active --quiet "$display_unit"; then
+  systemctl --user reset-failed "$display_unit" >/dev/null 2>&1 || true
+  systemd-run --user --unit=rover-site-display --collect \
+    --property=Restart=on-failure --property=RestartSec=3 \
+    /usr/bin/Xvfb :99 -screen 0 1280x800x24 -nolisten tcp
+fi
+
+for attempt in {1..50}; do
+  [[ -S /tmp/.X11-unix/X99 ]] && break
+  sleep 0.2
+done
+if [[ ! -S /tmp/.X11-unix/X99 ]]; then
+  echo 'The virtual display did not start. Run: rover-stream status' >&2
+  exit 1
+fi
+
+systemctl --user reset-failed "$browser_unit" >/dev/null 2>&1 || true
+systemd-run --user --unit=rover-site-browser --collect \
+  --setenv=DISPLAY=:99 \
+  --property=Restart=on-failure --property=RestartSec=5 \
+  --property="StandardError=append:$state_dir/browser.log" \
+  /usr/bin/chromium \
+    --user-data-dir="$profile" \
+    --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 \
+    --no-first-run --no-default-browser-check --window-size=1280,800 \
+    --autoplay-policy=no-user-gesture-required --kiosk \
+    --noerrdialogs --disable-session-crashed-bubble \
+    --disable-gpu --disable-features=WebRtcPipeWireCamera \
+    --disable-background-timer-throttling --disable-renderer-backgrounding \
+    --disable-backgrounding-occluded-windows \
+    "$url"
+
+echo "Opened $url on the Pi."
+echo 'The page controls when recording starts; this command launches the browser.'

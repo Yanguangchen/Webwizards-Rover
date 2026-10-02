@@ -1,0 +1,11 @@
+[Unit]
+Description=Check rover controls connectivity after boot and network changes
+
+[Timer]
+OnBootSec=30
+OnUnitInactiveSec=5
+AccuracySec=1
+Unit=rover-controls-network-check.service
+
+[Install]
+WantedBy=timers.target

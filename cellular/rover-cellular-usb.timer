@@ -1,0 +1,11 @@
+[Unit]
+Description=Check rover cellular USB sharing at startup and after reconnects
+
+[Timer]
+OnBootSec=20s
+OnUnitInactiveSec=30s
+AccuracySec=3s
+Unit=rover-cellular-usb.service
+
+[Install]
+WantedBy=timers.target

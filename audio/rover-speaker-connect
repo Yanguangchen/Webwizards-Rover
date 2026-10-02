@@ -1,0 +1,67 @@
+#!/usr/bin/python3
+"""Reconnect the rover's paired speaker and route active audio to it."""
+import json
+import subprocess
+import sys
+import time
+
+ADDRESS = '41:42:BB:24:7E:A1'
+CARD = 'bluez_card.41_42_BB_24_7E_A1'
+SINK = 'bluez_sink.41_42_BB_24_7E_A1.a2dp_sink'
+
+
+def command(*args, timeout=8, required=True):
+    result = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+    if required and result.returncode:
+        raise RuntimeError(' '.join(args) + ': ' + (result.stderr or result.stdout).strip())
+    return result
+
+
+def sinks():
+    return command('pactl', 'list', 'short', 'sinks').stdout
+
+
+def main():
+    connected_now = False
+    if SINK not in sinks():
+        command('bluetoothctl', 'power', 'on')
+        result = command('bluetoothctl', '--timeout', '12', 'connect', ADDRESS,
+                         timeout=16, required=False)
+        for _ in range(8):
+            if SINK in sinks():
+                break
+            cards = json.loads(command('pactl', '-f', 'json', 'list', 'cards').stdout)
+            if any(card['name'] == CARD for card in cards):
+                command('pactl', 'set-card-profile', CARD, 'a2dp_sink')
+            time.sleep(.5)
+        else:
+            raise RuntimeError('MS-PS1CN unavailable; next scheduled attempt will retry. ' + result.stdout.strip())
+        connected_now = True
+
+    default = command('pactl', 'get-default-sink').stdout.strip()
+    routed_now = default != SINK
+    if routed_now:
+        command('pactl', 'set-default-sink', SINK)
+    if connected_now or routed_now:
+        command('pactl', 'set-sink-mute', SINK, '0')
+        command('pactl', 'set-sink-volume', SINK, '75%')
+
+    sink_rows = [row.split() for row in sinks().splitlines()]
+    sink_id = next(row[0] for row in sink_rows if row[1] == SINK)
+    moved = 0
+    for row in command('pactl', 'list', 'short', 'sink-inputs').stdout.splitlines():
+        fields = row.split()
+        if fields[1] != sink_id:
+            command('pactl', 'move-sink-input', fields[0], SINK)
+            moved += 1
+    if connected_now or routed_now or moved:
+        print(json.dumps({'speaker': 'MS-PS1CN', 'connected_now': connected_now,
+                          'default_output': SINK, 'streams_moved': moved}), flush=True)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (RuntimeError, subprocess.TimeoutExpired, StopIteration) as exc:
+        print(str(exc), file=sys.stderr, flush=True)
+        sys.exit(1)

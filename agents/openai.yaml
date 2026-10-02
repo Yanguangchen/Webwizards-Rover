@@ -1,0 +1,4 @@
+interface:
+  display_name: "Raspberry Pi Rover"
+  short_description: "Operate rover camera, audio, cellular and controls"
+  default_prompt: "Use $raspberry-pi-rover to operate or troubleshoot my Webwizards Rover and StampNote connection."

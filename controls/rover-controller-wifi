@@ -1,0 +1,7 @@
+#!/bin/sh
+# Keep the controller's local Wi-Fi separate from the home Wi-Fi connection.
+set -eu
+if [ ! -d /sys/class/net/roverctl ]; then
+    /usr/sbin/iw dev wlan0 interface add roverctl type managed addr 02:fe:54:3c:c3:b6
+fi
+/usr/bin/nmcli device set roverctl managed yes

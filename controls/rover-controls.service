@@ -1,0 +1,15 @@
+[Unit]
+Description=Private rover controls relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/rover/rover-public-control/relay.py --upstream http://192.168.4.1 --key-file /home/rover/.config/rover-controls/key --enable-drive
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+UMask=0077
+
+[Install]
+WantedBy=default.target

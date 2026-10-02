@@ -1,0 +1,18 @@
+[Unit]
+Description=Permanent HTTPS tunnel to private rover controls
+After=rover-controls.service
+Wants=rover-controls.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/cloudflared tunnel --no-autoupdate --protocol http2 --edge-ip-version 4 --grace-period 2s --metrics 127.0.0.1:20242 run --token-file /home/rover/.config/rover-controls/tunnel-token
+TimeoutStartSec=90
+TimeoutStopSec=5
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+UMask=0077
+
+[Install]
+WantedBy=default.target

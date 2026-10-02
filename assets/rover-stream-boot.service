@@ -1,0 +1,16 @@
+[Unit]
+Description=Open StampNote robot camera at boot
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# The user manager starts before Wi-Fi may be ready. Retry until the site responds.
+ExecStartPre=/usr/bin/curl --fail --silent --show-error --location --output /dev/null --connect-timeout 5 --max-time 15 https://stampnote-omega.vercel.app/robotic-control
+ExecStart=/usr/local/bin/rover-stream start
+Restart=on-failure
+RestartSec=15
+TimeoutStartSec=60
+
+[Install]
+WantedBy=default.target

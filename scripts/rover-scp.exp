@@ -1,0 +1,23 @@
+#!/usr/bin/expect -f
+set timeout 90
+if {![info exists env(ROVER_PASSWORD_FILE)]} {
+    puts stderr "Set ROVER_PASSWORD_FILE to a private file outside this repository, or use ordinary SSH with a key."
+    exit 2
+}
+set credential_file [open $env(ROVER_PASSWORD_FILE) r]
+set rover_secret [string trim [read $credential_file]]
+close $credential_file
+set auth_count 0
+spawn -noecho scp -q -o ConnectTimeout=10 -o StrictHostKeyChecking=yes -o NumberOfPasswordPrompts=1 {*}$argv
+expect {
+    -re "(?i)password:" {
+        incr auth_count
+        if {$auth_count > [llength $argv] + 1} { puts stderr "Authentication failed"; exit 1 }
+        log_user 0
+        send -- "$rover_secret\r"
+        log_user 1
+        exp_continue
+    }
+    eof { set status [wait]; exit [lindex $status 3] }
+    timeout { puts "Transfer timed out"; close; wait; exit 124 }
+}

@@ -1,0 +1,17 @@
+{
+  "blend_reopened": true,
+  "four_wheel_pivots": true,
+  "four_cameras": true,
+  "packed_source_photos": 0,
+  "glb_reimported": true,
+  "blend_meshes": 568,
+  "glb_meshes": 616,
+  "glb_dimensions_mm": [
+    219.7,
+    247.6,
+    176.5
+  ],
+  "public_copy_reopened": true,
+  "public_copy_objects": 630,
+  "publication_note": "Four private photo reference objects and image datablocks removed; geometry unchanged. Other checks are from the original model validation."
+}

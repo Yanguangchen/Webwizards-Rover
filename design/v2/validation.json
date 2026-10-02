@@ -1,0 +1,21 @@
+{
+  "blend_reopened": true,
+  "closed_webcam_rear_shell": true,
+  "manufacturer_tires_and_hubs": 4,
+  "wheel_scale_verified": true,
+  "c270_recessed_optics_and_folded_clip": true,
+  "four_wheel_pivots": true,
+  "four_cameras": true,
+  "packed_source_photos": 0,
+  "glb_reimported": true,
+  "blend_meshes": 436,
+  "glb_meshes": 485,
+  "glb_dimensions_mm": [
+    208.1,
+    244.8,
+    176.5
+  ],
+  "public_copy_reopened": true,
+  "public_copy_objects": 500,
+  "publication_note": "Four private photo reference objects and image datablocks removed; geometry unchanged. Other checks are from the original model validation."
+}

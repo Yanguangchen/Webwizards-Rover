@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rover controls</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif;background:#101a21;color:#edf5f4}
+*{box-sizing:border-box}body{margin:0}main{max-width:520px;margin:auto;padding:22px 20px 16px}
+header,.readouts,.speed-label{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-size:24px;letter-spacing:-.6px;margin:0}.eyebrow{font-size:11px;letter-spacing:2px;color:#95afa9;margin:0 0 4px}
+.connection{font-size:12px;border:1px solid #3b535b;border-radius:20px;padding:7px 10px;white-space:nowrap;color:#bed0d4}
+.connection[data-state=online]{color:#a7ebcb;border-color:#326750;background:#16382b}
+.connection[data-state=offline]{color:#ffbead;border-color:#874c40;background:#352522}
+.readouts{margin:20px 0 14px;color:#afc4c5;font-size:13px}.readouts strong{color:#edf5f4;font-variant-numeric:tabular-nums;font-weight:600}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+button{min-height:66px;border:1px solid #35505a;background:#1b303a;color:#e8f5f4;border-radius:14px;font:600 25px system-ui;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+button:hover{background:#284750}button:active{background:#386556}button:disabled{opacity:.35;cursor:wait}button:focus-visible,input:focus-visible{outline:3px solid #9ce6c5;outline-offset:3px}
+.stop{background:#533229;border-color:#98604b;color:#ffe1d4;font-size:16px;letter-spacing:.7px}.stop:hover{background:#774633}
+.speed{margin-top:20px;padding:16px;border:1px solid #30444b;border-radius:14px;background:#14242c}
+.speed-label{font-size:14px}.speed-label output{color:#a7ebcb;font-weight:650;font-size:19px;font-variant-numeric:tabular-nums}
+input[type=range]{display:block;width:100%;margin:14px 0 5px;accent-color:#96dfbd;cursor:pointer}
+.range-labels{display:flex;justify-content:space-between;color:#8ba7ad;font-size:11px}
+#rover-motion-status{min-height:40px;line-height:1.5;font-size:13px;color:#bdd2d0;margin:16px 0 6px}
+.hint{font-size:11px;color:#819b9f;margin:0;line-height:1.5}
+@media(max-width:340px){main{padding:14px 12px}button{min-height:58px}.pad{gap:8px}.connection{font-size:11px;padding:6px 8px}}
+</style>
+</head>
+<body>
+<main aria-label="Rover driving controls">
+<header><div><p class="eyebrow">WEBWIZARDS</p><h1>Rover</h1></div><span id="connection" class="connection" data-state="connecting" role="status">Connecting…</span></header>
+<div class="readouts"><span>Battery <strong id="battery">—</strong></span><span>Hold to drive · Release to stop</span></div>
+<div class="pad" aria-label="Movement">
+<button data-left="0.3" data-right="0.5" aria-label="Forward left" disabled>↖</button>
+<button data-left="0.5" data-right="0.5" aria-label="Forward" disabled>↑</button>
+<button data-left="0.5" data-right="0.3" aria-label="Forward right" disabled>↗</button>
+<button data-left="-0.5" data-right="0.5" aria-label="Turn left" disabled>←</button>
+<button id="stop" class="stop" aria-label="Stop rover">STOP</button>
+<button data-left="0.5" data-right="-0.5" aria-label="Turn right" disabled>→</button>
+<button data-left="-0.3" data-right="-0.5" aria-label="Reverse left" disabled>↙</button>
+<button data-left="-0.5" data-right="-0.5" aria-label="Reverse" disabled>↓</button>
+<button data-left="-0.5" data-right="-0.3" aria-label="Reverse right" disabled>↘</button>
+</div>
+<section class="speed" aria-label="Driving speed">
+<div class="speed-label"><label for="speed">Speed</label><output id="speed-value" for="speed">30%</output></div>
+<input id="speed" type="range" min="10" max="50" step="5" value="30" aria-label="Speed percentage">
+<div class="range-labels"><span>10% · Slow</span><span id="speed-limit">50% · Maximum</span></div>
+</section>
+<p id="rover-motion-status" role="status" aria-live="polite">Preparing remote controls…</p>
+<p class="hint">WASD or arrow keys also work. Signal loss stops the rover.</p>
+</main>
+<!-- MOTION_SCRIPT -->
+</body>
+</html>

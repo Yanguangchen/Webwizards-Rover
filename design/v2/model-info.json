@@ -1,0 +1,11 @@
+{
+  "objects": 485,
+  "bounding_box_mm": [
+    208.1,
+    244.8,
+    176.5
+  ],
+  "scale": "estimated",
+  "unit": "metres",
+  "blender": "4.5.14 LTS"
+}

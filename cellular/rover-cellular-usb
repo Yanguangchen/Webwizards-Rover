@@ -1,0 +1,68 @@
+#!/usr/bin/python3
+"""Retry this rover's USB modem sharing, without touching working connections."""
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+
+def run(*args, timeout=15, check=True):
+    return subprocess.run(args, text=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE, timeout=timeout, check=check)
+
+
+def main():
+    # Leave an already-addressed USB link alone, including existing streams.
+    addresses = run("ip", "-j", "-4", "addr", "show", "dev", "usb0", check=False)
+    if addresses.returncode == 0 and "--verify-helper" not in sys.argv[1:]:
+        if any(a.get("scope") == "global" for d in json.loads(addresses.stdout)
+               for a in d.get("addr_info", [])):
+            return
+
+    found = False
+    for device in Path("/sys/bus/usb/devices").iterdir():
+        try:
+            if ((device / "idVendor").read_text().strip() == "05c6"
+                    and (device / "idProduct").read_text().strip() in {"9024", "9091"}
+                    and (device / "serial").read_text().strip() == "0"):
+                found = True
+                break
+        except (OSError, UnicodeError):
+            continue
+    if not found:
+        return
+
+    # Use a private, localhost-only ADB port so ordinary diagnostic sessions
+    # are unaffected. No modem root, firmware edits, or permission grants.
+    adb = ("/usr/bin/adb", "-P", "5038")
+    try:
+        run(*adb, "start-server")
+        run(*adb, "-s", "0", "wait-for-device", timeout=12)
+        model = run(*adb, "-s", "0", "shell", "getprop", "ro.product.model")
+        if model.stdout.strip() != "UFI":
+            raise RuntimeError("USB device is not the expected UFI modem")
+        result = run(*adb, "-s", "0", "shell", "am", "broadcast",
+                     "--include-stopped-packages", "-a", "local.rover.usbtether.ENABLE",
+                     "-n", "local.rover.usbtether/.EnableReceiver", timeout=20)
+        if "Broadcast completed" not in result.stdout:
+            raise RuntimeError("USB-sharing helper did not acknowledge broadcast")
+        print("Requested USB sharing on UFI modem; NetworkManager handles DHCP.", flush=True)
+    finally:
+        run(*adb, "kill-server", timeout=5, check=False)
+
+    # DHCP may have exhausted its retries while the modem was not sharing.
+    # Restart only a disconnected/failed link, never an active or pending one.
+    state = run("nmcli", "-g", "GENERAL.STATE", "device", "show", "usb0", check=False)
+    if state.returncode == 0 and state.stdout.split()[0] in {"30", "120"}:
+        run("nmcli", "--wait", "0", "connection", "up", "uuid",
+            "75a1216a-9d1a-30cd-8aca-ace5526ec021", "ifname", "usb0")
+        print("Restarted DHCP on the disconnected USB modem link.", flush=True)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (subprocess.SubprocessError, RuntimeError, OSError, ValueError) as error:
+        # Do not print modem logs or configuration, which can contain secrets.
+        print("USB-sharing retry incomplete: " + type(error).__name__, flush=True)
+        raise SystemExit(1)

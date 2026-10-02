@@ -1,0 +1,9 @@
+[Unit]
+Description=Reconnect rover controls when the internet route changes
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /home/rover/rover-public-control/tunnel-network-check.py
+TimeoutStartSec=20
+NoNewPrivileges=true
+UMask=0077

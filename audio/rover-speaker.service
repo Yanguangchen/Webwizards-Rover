@@ -1,0 +1,12 @@
+[Unit]
+Description=Connect MS-PS1CN and route rover audio to it
+Wants=pulseaudio.service
+After=pulseaudio.service
+
+[Service]
+Type=oneshot
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+ExecStart=/home/rover/.local/bin/rover-speaker-connect
+TimeoutStartSec=45
+StandardOutput=append:%h/.local/state/rover-speaker/events.log
+StandardError=append:%h/.local/state/rover-speaker/events.log
